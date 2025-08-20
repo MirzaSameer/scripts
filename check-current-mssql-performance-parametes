@@ -1,0 +1,34 @@
+/*
+==================================================
+ SQL Server Baseline Check Script
+==================================================
+*/
+
+PRINT '--- 🔎 Checking Parallelism Settings ---';
+EXEC sp_configure 'show advanced options';
+EXEC sp_configure 'max degree of parallelism';
+EXEC sp_configure 'cost threshold for parallelism';
+
+PRINT '--- 🔎 Checking Memory Settings ---';
+EXEC sp_configure 'max server memory (MB)';
+EXEC sp_configure 'min server memory (MB)';
+
+PRINT '--- 🔎 Checking TempDB Files ---';
+USE tempdb;
+GO
+SELECT 
+    name AS FileName,
+    physical_name AS FilePath,
+    size/128 AS SizeMB,
+    growth/128 AS GrowthMB,
+    type_desc AS FileType
+FROM sys.database_files;
+
+PRINT '--- 🔎 Checking TempDB Space Usage ---';
+DBCC SQLPERF(LOGSPACE);
+
+PRINT '--- 🔎 Checking File Stats ---';
+DBCC SHOWFILESTATS;
+GO
+
+PRINT '✅ Baseline check completed';
