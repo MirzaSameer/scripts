@@ -1,0 +1,73 @@
+/*
+==================================================
+ SQL Server Baseline Configuration Script
+ For OLTP + Reporting Workloads (16GB RAM / 4 Cores)
+==================================================
+*/
+
+/* ----------------------------------------------
+   1. Enable advanced options
+-----------------------------------------------*/
+EXEC sp_configure 'show advanced options', 1;
+RECONFIGURE;
+
+/* ----------------------------------------------
+   2. Parallelism settings
+-----------------------------------------------*/
+-- Set Max Degree of Parallelism (MAXDOP)
+-- Best practice = # of cores (max 8)
+EXEC sp_configure 'max degree of parallelism', 4;
+RECONFIGURE;
+
+-- Raise cost threshold for parallelism
+-- Default = 5 (too low), 50 is good baseline
+EXEC sp_configure 'cost threshold for parallelism', 50;
+RECONFIGURE;
+
+/* ----------------------------------------------
+   3. Memory settings
+-----------------------------------------------*/
+-- Cap Max Server Memory (MB)
+-- With 16GB RAM, reserve ~8GB for OS
+EXEC sp_configure 'max server memory (MB)', 8192;
+RECONFIGURE;
+
+/* ----------------------------------------------
+   4. TempDB optimization
+-----------------------------------------------*/
+USE master;
+GO
+
+-- Resize primary file
+ALTER DATABASE tempdb 
+MODIFY FILE (NAME = tempdev, SIZE = 1024MB, FILEGROWTH = 512MB);
+GO
+
+-- Add additional data files (equal size, same growth)
+-- Adjust count = number of logical CPU cores (here: 4)
+ALTER DATABASE tempdb 
+ADD FILE (NAME = tempdev2, FILENAME = '/var/opt/mssql/data/tempdb2.ndf', SIZE = 1024MB, FILEGROWTH = 512MB);
+ALTER DATABASE tempdb 
+ADD FILE (NAME = tempdev3, FILENAME = '/var/opt/mssql/data/tempdb3.ndf', SIZE = 1024MB, FILEGROWTH = 512MB);
+ALTER DATABASE tempdb 
+ADD FILE (NAME = tempdev4, FILENAME = '/var/opt/mssql/data/tempdb4.ndf', SIZE = 1024MB, FILEGROWTH = 512MB);
+GO
+
+-- Resize log file
+ALTER DATABASE tempdb 
+MODIFY FILE (NAME = templog, SIZE = 512MB, FILEGROWTH = 256MB);
+GO
+
+/* ----------------------------------------------
+   5. Verify configuration
+-----------------------------------------------*/
+EXEC sp_configure 'max degree of parallelism';
+EXEC sp_configure 'cost threshold for parallelism';
+EXEC sp_configure 'max server memory (MB)';
+
+-- Check TempDB files
+USE tempdb;
+DBCC SHOWFILESTATS;
+GO
+
+PRINT '✅ Baseline configuration + TempDB optimization applied successfully';
